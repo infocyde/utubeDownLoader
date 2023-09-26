@@ -26,11 +26,12 @@ base_file_name = input("Enter the base filename for saving the files (hit enter 
 if base_file_name == '':
     base_file_name = current_file_name
 
-# Create a YouTube object
-yt = YouTube(url)
+
 
 # Get the available video streams and prompt the user to select the resolution
-video_streams = yt.streams.filter(only_video=True, file_extension='mp4')
+#video_streams = yt.streams.filter(only_video=True, file_extension='mp4') #video no audio
+
+video_streams = yt.streams.filter(progressive=True,file_extension='mp4').all()
 print("Available video resolutions:")
 for i, stream in enumerate(video_streams):
     print(f"{i + 1}. {stream.resolution}")
@@ -55,3 +56,48 @@ audio_stream = audio_streams_list[selected]
 print(f"Downloading Audio: {yt.title} in {audio_stream.abr} - {audio_stream.audio_codec}")
 audio_stream.download(filename=f"{base_file_name}_.mp3")
 print("Audio Download completed!")
+
+#https://pypi.org/project/youtube-transcript-api/
+
+# https://dev.to/azure/ai-using-whisper-to-convert-audio-to-text-from-my-podcast-episode-in-spanish-c96
+
+transcript_yn = input("do you want to transcribe this video?\nThis takes a bit of time. (type 'y' and hit enter if you do.)")
+if transcript_yn.lower() == 'y': 
+    
+    from pydub import AudioSegment
+    from pydub.silence import split_on_silence
+    import whisper
+
+    import time
+    
+    sound_file = AudioSegment.from_mp3(f"/{base_file_name}_.mp3")
+    audio_chunks = split_on_silence(sound_file, min_silence_len=1000, silence_thresh=-40 )
+    count = len(audio_chunks)
+    print("Audio split into " + str(count) + " audio chunks \n")
+
+    # Call Whisper to transcribe audio
+    model = whisper.load_model("base")
+    transcript = ""
+    for i, chunk in enumerate(audio_chunks):    
+        if i < 10 or i > count - 10:
+            out_file = "chunk{0}.wav".format(i)
+            print("\r\nExporting >>", out_file, " - ", i, "/", count)
+            chunk.export(out_file, format="wav")
+            result = model.transcribe(out_file)
+            transcriptChunk = result["text"]
+            print(transcriptChunk)
+
+            transcript += " " + transcriptChunk
+
+    # Print transcript
+    with open(f"{base_file_name}_transcript.txt", "w", encoding="utf-8") as file:
+        file.write(transcript)
+
+    print("\ntranscribed")
+
+# also you can merge stuff with ffmpeg-python
+# infile1 = ffmpeg.input("video.mp4")
+# infile2 = ffmpeg.input("sound.mp3")
+
+# merged  = ffmpeg.concat(infile1, infile2, v=1, a=1)
+# output  = ffmpeg.output(merged[0], merged[1], "merged.mp4")
