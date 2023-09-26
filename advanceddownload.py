@@ -1,6 +1,6 @@
 from pytube import YouTube
 
-
+# not used
 def parse_srt(srt_text):
     """
     This function parses the SRT caption and returns plain text
@@ -12,9 +12,19 @@ def parse_srt(srt_text):
 
 # Prompt the user to enter the URL of the YouTube video
 url = input("Enter the URL of the YouTube video you want to download: ")
+import re
+
+# Create a YouTube object
+yt = YouTube(url)
+
+# Set the base_file_name with the name of the video file with illegal or difficult characters removed
+current_file_name = re.sub(r'[\\/*?:"<>|]', "", yt.title)
+
 
 # Prompt the user to enter the base filename for saving the files
-base_file_name = input("Enter the base filename for saving the files: ")
+base_file_name = input("Enter the base filename for saving the files (hit enter for default): ")
+if base_file_name == '':
+    base_file_name = current_file_name
 
 # Create a YouTube object
 yt = YouTube(url)
@@ -32,37 +42,16 @@ print(f"Downloading Video: {yt.title} in {video_stream.resolution} resolution")
 video_stream.download(filename=f"{base_file_name}_.mp4")
 print("Video Download completed!")
 
-# Get the first audio stream available and download it
-audio_stream = yt.streams.filter(only_audio=True).first()
-print(f"Downloading Audio: {yt.title}")
-audio_stream.download(filename=f"{base_file_name}_mp3")
+# Get the available audio streams and prompt the user to select the preferred one
+audio_streams = yt.streams.filter(only_audio=True)
+print("Available audio codecs:")
+audio_streams_list = list(audio_streams)
+for i, stream in enumerate(audio_streams_list):
+    print(f"{i + 1}. {stream.abr} - {stream.audio_codec}")
+
+selected = int(input("Enter the number of the audio codec you want to download: ")) - 1
+audio_stream = audio_streams_list[selected]
+
+print(f"Downloading Audio: {yt.title} in {audio_stream.abr} - {audio_stream.audio_codec}")
+audio_stream.download(filename=f"{base_file_name}_.mp3")
 print("Audio Download completed!")
-
-# Get the available captions
-captions = yt.captions
-
-# Get the available captions
-# Get the available captions
-captions = yt.captions
-
-try:
-    # If captions are available, prompt the user to select one, then download and save it
-    if captions:
-        print("Available captions:")
-        captions_list = [{'code': code, 'name': caption.name} for code, caption in captions.items()]
-        for i, caption in enumerate(captions_list):
-            print(f"{i + 1}. {caption['name']} [{caption['code']}]")
-
-        selected = int(input("Enter the number of the caption you want to download: ")) - 1
-        selected_caption_code = captions_list[selected]['code']
-        selected_caption = captions[selected_caption_code]
-
-        # Save the caption to a file in plain text format
-        with open(f"{base_file_name}_caption.txt", "w", encoding="utf-8") as f:
-            f.write(parse_srt(selected_caption.generate_srt_captions()))
-        print("Caption Download completed!")
-    else:
-        print("No captions available for this video.")
-except Exception as e:
-    print(f"An error occurred while processing captions: {str(e)}")
-
